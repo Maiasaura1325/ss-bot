@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from pytz import timezone as p_timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+#intents and files
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
@@ -17,6 +18,8 @@ IMAGE_LOG_FILE = "image_log.json"
 IMAGE_DIR = "images"
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
+
+#for images ig idk wth this is
 def load_json(path, default=None):
     if not os.path.exists(path):
         return default
@@ -33,6 +36,7 @@ if not isinstance(image_log, list):
     print("imagelog.json is corupted or not a list. Reinitializing.")
     image_log = []
 
+# for that random secret command maiasaura messes with
 secret_list = []
 with open('secret.txt', "r") as f:
     for item in f.read().split():
@@ -40,11 +44,13 @@ with open('secret.txt', "r") as f:
 def is_secret(ctx: discord.Interaction):
     return str(ctx.user.id) in secret_list
 
+# function to see if message may contain cheating MAY PRODUCE FALSE POSITIVES DO NOT BAN PEOPLE JUST CUZ THEY SHOW UP HERE!!!!!!!!!!!!!!!!
 def is_cheating(text):
     with open('keywords.txt', 'r') as f:
         keywords = [line.strip() for line in f if line.strip()]
     return any(re.search(rf'\b{re.escape(keyword)}\b', text, re.IGNORECASE) for keyword in keywords)
 
+# stuff to say and or do when ready and if there is an error
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
@@ -54,6 +60,7 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
+# command for input channel for memes
 @bot.tree.command(name="set_input_channel", description="set input channel for daily memes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def set_input_channel(ctx: discord.Interaction, channel: discord.TextChannel):
@@ -62,6 +69,7 @@ async def set_input_channel(ctx: discord.Interaction, channel: discord.TextChann
     await ctx.response.send_message(f"Insert channel set to {channel.mention}", ephemeral=True)
     print(f"set input channel: {channel}")
 
+# command for output channel for daily memes
 @bot.tree.command(name="set_output_channel", description="set output channel for daily memes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def set_output_channel(ctx: discord.Interaction, channel: discord.TextChannel):
@@ -70,6 +78,7 @@ async def set_output_channel(ctx: discord.Interaction, channel: discord.TextChan
     await ctx.response.send_message(f"Output channel set to {channel.mention}", ephemeral=True)
     print(f"set output channel: {channel}")
 
+# sets and autolog channel
 @bot.tree.command(name="set_autolog_channel", description="set autlog channel [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
@@ -78,6 +87,7 @@ async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextCha
     await ctx.response.send_message(f"Autolog channel set to {channel.mention}", ephemeral=True)
     print(f"set autolog channel: {channel}")
 
+# sets a channel where suggestions will appear
 @bot.tree.command(name="set_suggestions_channel", description="set suggestions channel (where it shows up) [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
@@ -86,10 +96,13 @@ async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextCha
     await ctx.response.send_message(f"Suggestions channel set to {channel.mention}", ephemeral=True)
     print(f"set suggestions channel: {channel}")
 
+# calls fuctions to see if people are cheating everytime someone sends a message
 @bot.event
 async def on_message(message):
+    # ignores if the author was the bot
     if message.author.bot:
         return
+    # this has smth to do with images im not gonna bother with this
     if str(config.get("insert_channel")) == str(message.channel.id):
         for attachment in message.attachments:
             if attachment.content_type and attachment.content_type.startswith("image"):
@@ -103,14 +116,18 @@ async def on_message(message):
                             with open(filepath, "wb") as f:
                                 f.write(await resp.read())
                 
+                # logs the file's name, author ID, author nickname (dreex added), author username (dreex added) and timestamp
                 image_log.append({
                     "filename": filename,
-                    "uploader": str(message.author.id),
+                    "uploaderID": str(message.author.id),
+                    "uploaderNickname": str(message.author.nick),
+                    "uploaderUsername": str(message.author.username),
                     "timestamp": str(datetime.now(dt_timezone.utc))
                 })
                 save_json(IMAGE_LOG_FILE, image_log)
                 print("image added")
     else:
+        # if the message is not an attatchment, checks if cheating and calls the necesary functions and stuff
         if is_cheating(message.content):
             log_channel_id = config.get("autolog_channel")
             if log_channel_id:
@@ -129,6 +146,7 @@ async def on_message(message):
                     print("cheat logged")
     await bot.process_commands(message)
     
+# daily image sender idt it works as of writing this
 scheduler = AsyncIOScheduler(timezone=p_timezone("US/Central"))
 @scheduler.scheduled_job("cron", hour=7, minute=0)
 async def daily_post():
@@ -151,6 +169,7 @@ async def daily_post():
         save_json(CONFIG_FILE, config)
     print("daily sent")
 
+# command to get the past daily meme
 @bot.tree.command(name="get_past_daily", description="get a past daily meme")
 async def get_past_daily(ctx: discord.Interaction, number: int):
     if number <= 0 or number > len(image_log):
@@ -167,6 +186,7 @@ async def get_past_daily(ctx: discord.Interaction, number: int):
     await ctx.response.send_message(f"Image #{number}", file=discord.File(filepath))
     print("past daily sent")
 
+# deletes x amt of messages
 @bot.tree.command(name="purge", description="purge messages [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def purge(ctx: discord.Interaction, count: int):
@@ -174,6 +194,7 @@ async def purge(ctx: discord.Interaction, count: int):
     await ctx.send_message(f"Purged {count} messages")
     print(f"purged {count} messages")
 
+# adds a keyword to keywords.txt
 @bot.tree.command(name="add_keyword", description="Add keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def add_keyword(ctx: discord.Interaction, phrase: str):
@@ -184,6 +205,7 @@ async def add_keyword(ctx: discord.Interaction, phrase: str):
     await ctx.response.send_message(f"Your phrase '{phrase}' has been added to autolog keywords")
     print(f"added {phrase} to keywords")
 
+# removes a keyword from keywords.txt
 @bot.tree.command(name="remove_keyword", description="Remove keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def remove_keyword(ctx: discord.Interaction, phrase: str):
@@ -203,6 +225,7 @@ async def remove_keyword(ctx: discord.Interaction, phrase: str):
     await ctx.response.send_message(f"Removed keyword: '{phrase}'")
     print(f"{phrase} removed form keywords")
 
+# sends a list of the keywords
 @bot.tree.command(name="check_keywords", description="List keywords for autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def check_keywords(ctx: discord.Interaction):
@@ -217,6 +240,7 @@ async def check_keywords(ctx: discord.Interaction):
     await ctx.response.send_message(f"**Current Autolog Keywords ({len(keywords)}):**\n{keyword_list}", ephemeral=True)
     print("keywords checked")
 
+# command to send a suggestion to the designated channel
 @bot.tree.command(name="suggest", description="send any suggestions to the admins :)")
 async def suggest(ctx: discord.Interaction, suggestion: str):
     log_channel_id = config.get("suggest_channel")
@@ -234,10 +258,19 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
             await ctx.response.send_message("Your suggestion has been sent :)", ephemeral=True)
             print(f"suggestion sent: {suggestion}")
         else:
+            # why spam an admin :sob:
             await ctx.response.send_message("It seems like there is no log channel. Perhaps spam a admin", ephemeral=True)
     else:
         await ctx.response.send_message("It seems like there is no log channel ID. Perhaps spam a admin", ephemeral=True)
 
+# command to see who made this, created by dreex54
+# half chance this works. No idea how to do this. If it works first try im just better like that
+@bot.tree.command(name="credits", description="see who contributed to this beautiful bot")
+async def credit(ctx: discord.Interaction):
+    # longest line :skull:
+    await ctx.response.send_message("<@1146930572179017883> made almost all of the code while <@1274754262181613691> mostly yapped through comments but did actually add code, and last but not the least, we havve to give credit to our good friend ChatGPT (<@1146930572179017883> doing not me blame her when ai takes over the world)", ephemeral=True)
+
+# test the bot, either for the random secret command or maiasaura thinks commoners can't see this command even though they probably can
 @bot.tree.command(name="test", description="Testing the bot [SECRET ONLY]")
 @app_commands.check(is_secret)
 async def test(ctx: discord.Interaction):
