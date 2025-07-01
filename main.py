@@ -60,6 +60,7 @@ async def set_input_channel(ctx: discord.Interaction, channel: discord.TextChann
     config["insert_channel"] = channel.id
     save_json(CONFIG_FILE, config)
     await ctx.response.send_message(f"Insert channel set to {channel.mention}", ephemeral=True)
+    print(f"set input channel: {channel}")
 
 @bot.tree.command(name="set_output_channel", description="set output channel for daily memes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -67,6 +68,7 @@ async def set_output_channel(ctx: discord.Interaction, channel: discord.TextChan
     config["output_channel"] = channel.id
     save_json(CONFIG_FILE, config)
     await ctx.response.send_message(f"Output channel set to {channel.mention}", ephemeral=True)
+    print(f"set output channel: {channel}")
 
 @bot.tree.command(name="set_autolog_channel", description="set autlog channel [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -74,6 +76,7 @@ async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextCha
     config["autolog_channel"] = channel.id
     save_json(CONFIG_FILE, config)
     await ctx.response.send_message(f"Autolog channel set to {channel.mention}", ephemeral=True)
+    print(f"set autolog channel: {channel}")
 
 @bot.tree.command(name="set_suggestions_channel", description="set suggestions channel (where it shows up) [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -81,6 +84,7 @@ async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextCha
     config["suggest_channel"] = channel.id
     save_json(CONFIG_FILE, config)
     await ctx.response.send_message(f"Suggestions channel set to {channel.mention}", ephemeral=True)
+    print(f"set suggestions channel: {channel}")
 
 @bot.event
 async def on_message(message):
@@ -105,6 +109,7 @@ async def on_message(message):
                     "timestamp": str(datetime.now(dt_timezone.utc))
                 })
                 save_json(IMAGE_LOG_FILE, image_log)
+                print("image added")
     else:
         if is_cheating(message.content):
             log_channel_id = config.get("autolog_channel")
@@ -121,6 +126,7 @@ async def on_message(message):
                     embed.add_field(name="Channel", value=message.channel.mention)
                     embed.add_field(name="Message Link", value=f"[Jump to message]({message.jump_url})")
                     await log_channel.send(embed=embed)
+                    print("cheat logged")
     await bot.process_commands(message)
     
 scheduler = AsyncIOScheduler(timezone=p_timezone("US/Central"))
@@ -143,6 +149,7 @@ async def daily_post():
         await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
         config["current_index"] = index + 1
         save_json(CONFIG_FILE, config)
+    print("daily sent")
 
 @bot.tree.command(name="get_past_daily", description="get a past daily meme")
 async def get_past_daily(ctx: discord.Interaction, number: int):
@@ -158,12 +165,14 @@ async def get_past_daily(ctx: discord.Interaction, number: int):
         return
     
     await ctx.response.send_message(f"Image #{number}", file=discord.File(filepath))
+    print("past daily sent")
 
 @bot.tree.command(name="purge", description="purge messages [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def purge(ctx: discord.Interaction, count: int):
     await ctx.channel.purge(limit=int(count))
     await ctx.send_message(f"Purged {count} messages")
+    print(f"purged {count} messages")
 
 @bot.tree.command(name="add_keyword", description="Add keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -173,6 +182,7 @@ async def add_keyword(ctx: discord.Interaction, phrase: str):
         f.write(phrase)
         f.close()
     await ctx.response.send_message(f"Your phrase '{phrase}' has been added to autolog keywords")
+    print(f"added {phrase} to keywords")
 
 @bot.tree.command(name="remove_keyword", description="Remove keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -191,6 +201,7 @@ async def remove_keyword(ctx: discord.Interaction, phrase: str):
             f.write(kw + '\n')
     
     await ctx.response.send_message(f"Removed keyword: '{phrase}'")
+    print(f"{phrase} removed form keywords")
 
 @bot.tree.command(name="check_keywords", description="List keywords for autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -204,6 +215,7 @@ async def check_keywords(ctx: discord.Interaction):
     
     keyword_list = "\n".join(f"- {kw}" for kw in keywords)
     await ctx.response.send_message(f"**Current Autolog Keywords ({len(keywords)}):**\n{keyword_list}", ephemeral=True)
+    print("keywords checked")
 
 @bot.tree.command(name="suggest", description="send any suggestions to the admins :)")
 async def suggest(ctx: discord.Interaction, suggestion: str):
@@ -219,11 +231,18 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
             )
             embed.set_author(name=str(ctx.user), icon_url=ctx.user.display_avatar.url)
             await log_channel.send(embed=embed)
+            await ctx.response.send_message("Your suggestion has been sent :)", ephemeral=True)
+            print(f"suggestion sent: {suggestion}")
+        else:
+            await ctx.response.send_message("It seems like there is no log channel. Perhaps spam a admin", ephemeral=True)
+    else:
+        await ctx.response.send_message("It seems like there is no log channel ID. Perhaps spam a admin", ephemeral=True)
 
 @bot.tree.command(name="test", description="Testing the bot [SECRET ONLY]")
 @app_commands.check(is_secret)
 async def test(ctx: discord.Interaction):
     await ctx.response.send_message("Test passed", ephemeral=True)
+    print("tested")
 
 with open('token.txt', 'r') as f:
     TOKEN = f.read()
