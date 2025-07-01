@@ -265,8 +265,9 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
 
 # command to see who made this, created by dreex54
 # half chance this works. No idea how to do this. If it works first try im just better like that
+#IT DIDNT WORK FIRST TRY IM ANGRY NOW
 @bot.tree.command(name="credits", description="see who contributed to this beautiful bot")
-async def credit(ctx: discord.Interaction):
+async def credits(ctx: discord.Interaction):
     # longest line :skull:
     await ctx.response.send_message("<@1146930572179017883> made almost all of the code while <@1274754262181613691> mostly yapped through comments but did actually add code, and last but not the least, we havve to give credit to our good friend ChatGPT (<@1146930572179017883> doing not me blame her when ai takes over the world)", ephemeral=True)
 
