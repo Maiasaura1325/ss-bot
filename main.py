@@ -135,7 +135,7 @@ async def daily_post():
     if "output_channel" not in config:
         return
     
-    index = config.get("current_index", 0)
+    index = config.get("current_index")
     if index >= len(image_log):
         return
     
