@@ -4,7 +4,7 @@ from discord.ext import commands
 import json, os, aiohttp, re
 from datetime import datetime, timedelta, timezone as dt_timezone
 from pytz import timezone as p_timezone
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import time
 import random
 
 #intents and files
@@ -148,28 +148,32 @@ async def on_message(message):
                     print("cheat logged")
     await bot.process_commands(message)
     
-# daily image sender idt it works as of writing this
-scheduler = AsyncIOScheduler(timezone=p_timezone("US/Central"))
-@scheduler.scheduled_job("cron", hour=7, minute=0)
-async def daily_post():
-    if "output_channel" not in config:
-        return
-    
-    index = config.get("current_index")
-    if index >= len(image_log):
-        return
-    
-    entry = image_log[index]
-    channel = bot.get_channel(config["output_channel"])
-    if not channel:
-        return
-    
-    filepath = os.path.join(IMAGE_DIR, entry["filename"])
-    if os.path.exists(filepath):
-        await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
-        config["current_index"] = index + 1
-        save_json(CONFIG_FILE, config)
-    print("daily sent")
+# changed, lets see if this works
+hour = 7
+min = 0
+sec = 0
+if time.localtime()[3] == hour and time.localtime()[4] == min and time.localtime()[5] == sec:
+    #                     ^ hour                       ^ minute                     ^ second
+    # change these values for testing. EX: if I want meme at 6:00 pm, set hour to 18, minute to 0 and second to 0. Hour ranges from 0-23.
+    async def daily_post():
+        if "output_channel" not in config:
+            return
+        
+        index = config.get("current_index")
+        if index >= len(image_log):
+            return
+        
+        entry = image_log[index]
+        channel = bot.get_channel(config["output_channel"])
+        if not channel:
+            return
+        
+        filepath = os.path.join(IMAGE_DIR, entry["filename"])
+        if os.path.exists(filepath):
+            await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
+            config["current_index"] = index + 1
+            save_json(CONFIG_FILE, config)
+        print("daily sent")
 
 # command to get the past daily meme
 @bot.tree.command(name="get_past_daily", description="get a past daily meme")
