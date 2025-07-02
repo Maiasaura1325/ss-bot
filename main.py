@@ -5,6 +5,7 @@ import json, os, aiohttp, re
 from datetime import datetime, timedelta, timezone as dt_timezone
 from pytz import timezone as p_timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import random
 
 #intents and files
 intents = discord.Intents.default()
@@ -121,10 +122,11 @@ async def on_message(message):
                     "filename": filename,
                     "uploaderID": str(message.author.id),
                     "uploaderNickname": str(message.author.nick),
-                    "uploaderUsername": str(message.author.username),
+                    "uploaderUsername": str(message.author),
                     "timestamp": str(datetime.now(dt_timezone.utc))
                 })
                 save_json(IMAGE_LOG_FILE, image_log)
+                await bot.get_channel(config.get("insert_channel")).send(f"New image has been logged as #{len(image_log)}!")
                 print("image added")
     else:
         # if the message is not an attatchment, checks if cheating and calls the necesary functions and stuff
@@ -173,7 +175,7 @@ async def daily_post():
 @bot.tree.command(name="get_past_daily", description="get a past daily meme")
 async def get_past_daily(ctx: discord.Interaction, number: int):
     if number <= 0 or number > len(image_log):
-        await ctx.response.send_mesage(f"Invalid number: {number}. Your number must be between 1 and {len(image_log)}", ephemeral=True)
+        await ctx.response.send_message(f"Invalid number: {number}. Your number must be between 1 and {len(image_log)}", ephemeral=True)
         return
     
     entry = image_log[number - 1]
@@ -185,6 +187,19 @@ async def get_past_daily(ctx: discord.Interaction, number: int):
     
     await ctx.response.send_message(f"Image #{number}", file=discord.File(filepath))
     print("past daily sent")
+
+@bot.tree.command(name="get_random_meme", description="get a random meme")
+async def get_random_meme(ctx: discord.Interaction):
+    num = random.randint(0, len(image_log)-1)
+    entry = image_log[num - 1]
+    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+    if not os.path.exists(filepath):
+        await ctx.response.send_message("Image file is missing. Try again", ephemeral=True)
+        print(f"Random image error. Image index: {num}")
+        return
+    
+    await ctx.response.send_message(f"Image #{num+1}", file=discord.File(filepath))
+    print(f"Random image sent: Index {num}")
 
 # deletes x amt of messages
 @bot.tree.command(name="purge", description="purge messages [ADMIN ONLY]")
