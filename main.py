@@ -258,6 +258,65 @@ async def check_keywords(ctx: discord.Interaction):
     keyword_list = "\n".join(f"- {kw}" for kw in keywords)
     await ctx.response.send_message(f"**Current Autolog Keywords ({len(keywords)}):**\n{keyword_list}", ephemeral=True)
     print("keywords checked")
+    
+# adds a quote to quotes.txt (reskinned add keyword command so should work) (dreex created)
+@bot.tree.command(name="add_quote", description="Adds a quote to the list of quotes. DO NOT PRESS SHIFT+ENTER OR PRESS THE ENTER KEY ON THE PHONE KEYBOARD or get blacklisted")
+async def add_quote(ctx: discord.Interaction, quote: str):
+    with open('quotes.txt', 'a') as f:
+        f.write("\n")
+        f.write(quote)
+        f.close()
+    await ctx.response.send_message(f"Your quote '{quote}' has been added to the list of quotes")
+    print(f"added {quote} to quotes")
+    
+# removes a quote from quotes.txt, also reskinned (dreex made)
+@bot.tree.command(name="remove_quote", description="Remove quote from the list of quotes [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def remove_quote(ctx: discord.Interaction, quote: str):
+    with open('quotes.txt', 'r') as f:
+        quotes = f.read().splitlines()
+    
+    normalized_quotes = [k.strip() for k in quotes]
+    if quote.strip() not in normalized_quotes:
+        await ctx.response.send_message(f"The quote '{quote}' is not in the keyword list.", ephemeral=True)
+        return
+    normalized_quotes.remove(quote.strip()+"\n")
+
+    with open('quotes.txt', 'w') as f:
+        for kw in normalized_quotes:
+            f.write(kw + '\n')
+    
+    await ctx.response.send_message(f"Removed quote: '{quote}'")
+    print(f"{quote} removed form quotes")
+    # holy crap that was a lot of changing stuff from keyword and phrase to quote and quotes
+    
+# sends a list of the quotes, also reskinned and dreex made (its as if I can't actually code)
+# dont worry i can actually code, coders are just lazy
+@bot.tree.command(name="check_quotes", description="List all quotes from the list of quotes [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def check_quotes(ctx: discord.Interaction):
+    with open('quotes.txt', 'r') as f:
+        quotes = [line.strip() for line in f if line.strip()]
+    
+    if not quotes:
+        await ctx.response.send_message("The quotes list is currently empty.", ephemeral=True)
+        return
+    
+    quote_list = "\n".join(f"- {kw}" for kw in quotes)
+    await ctx.response.send_message(f"**Current quotes ({len(quotes)}):**\n{quote_list}", ephemeral=True)
+    print("quotes checked")
+    
+# sends a random quote, dreex made, not actually a reskin 
+@bot.tree.command(name="random_quote", description="generates a random quote")
+async def random_quote(ctx:discord.Interaction):
+    with open("quotes.txt", 'r') as f:
+        quotes = [line.strip() for line in f if line.strip()]
+    if not quotes:
+        await ctx.response.send_message("The quotes list is currently empty.", ephemeral=True)
+        return
+    quote = random.randint(0, len(quotes) - 1)
+    await ctx.response.send_message(quotes[quote])
+    print("quote sent")
 
 # command to send a suggestion to the designated channel
 @bot.tree.command(name="suggest", description="send any suggestions to the admins :)")
