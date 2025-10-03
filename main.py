@@ -388,20 +388,32 @@ async def test(ctx: discord.Interaction):
     await ctx.response.send_message("Test passed", ephemeral=True)
     print("tested")
 
-# command to send the homework reminder
-@bot.tree.command(name="hwreminders", description="remind people of their homework, include due date in description if you want")
+# command to send the reminder
+@bot.tree.command(name="set_reminder", description="remind people of their homework/tests, include due date in description if you want")
 @app_commands.checks.has_permissions(administrator=True)
-async def hwreminders(ctx: discord.Interaction, subject: str, description: str):
+async def hwreminders(ctx: discord.Interaction, testorhomework: str, subject: str, description: str):
     hwremindstring = subject + " - " + description
-    with open('hwreminders.txt', 'a') as f:
-        f.write(hwremindstring)
-        f.write("\n")
-        f.close()
-    await ctx.response.send_message("You sent the reminder: " + hwremindstring, ephemeral=True)
+    testorhomework = testorhomework.lower()
+    if testorhomework == "homework" or testorhomework == "hw":
+        with open('hwreminders.txt', 'a') as f:
+            f.write(hwremindstring)
+            f.write("\n")
+            f.close()
+        await ctx.response.send_message("You sent the reminder: " + hwremindstring)
+    elif testorhomework == "test" or testorhomework == "quiz":
+        with open('testreminders.txt', 'a') as f:
+            f.write(hwremindstring)
+            f.write("\n")
+            f.close()
+        await ctx.response.send_message("You sent the reminder: " + hwremindstring)
+    else:
+        await ctx.response.send_message("You did not choose test or homework for the test or homework category", ephemeral=True)
     
-@bot.tree.command(name="see_reminders", description="see the homework reminders lined up")
+@bot.tree.command(name="see_reminders", description="see the test/quiz or homework reminders lined up")
 @app_commands.checks.has_permissions(administrator=True)
-async def see_reminders(ctx:discord.Interaction):
+async def see_reminders(ctx:discord.Interaction, testOrQuiz: str):
+    #WIP as of commiting
+    if testOrQuiz == "test" or testOrQuiz == "quiz"
     with open('hwreminders.txt', 'r') as f:
         reminders = [line.strip() for line in f if line.strip()]
         f.close()
@@ -416,7 +428,7 @@ async def clear_reminders(ctx:discord.Interaction):
         f.write("")
         f.close()
     
-    await ctx.response.send_message("Reminders cleared!", ephemeral=True)
+    await ctx.response.send_message("Reminders cleared")
 
 with open('token.txt', 'r') as f:
     TOKEN = f.read()
