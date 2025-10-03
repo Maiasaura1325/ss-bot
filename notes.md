@@ -12,5 +12,10 @@ filterquotes
   - subquote[str] [a substring to search through quotes] [optional]
  - returns: list of quotes fulfilling requirements
 
+In progress: 
+ - a homework and test/quiz reminder
+ - you input the class and the description
+ - at a certain time, the bot will send the message containing the homework in the desired channel with a ping to the desired role OR we do a command manually that sends all of the reminders, could be either one at this point, we'll see
+
 
 All future quote lists will include index in front of the quote

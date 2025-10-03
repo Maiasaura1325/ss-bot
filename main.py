@@ -266,7 +266,7 @@ async def check_keywords(ctx: discord.Interaction):
     print("keywords checked")
     
 # adds a quote to quotes.txt (reskinned add keyword command so should work) (dreex created)
-@bot.tree.command(name="add_quote", description="Adds a quote; DO NOT PRESS SHIFT+ENTER OR PRESS THE ENTER KEY ON THE PHONE KEYBOARD")
+@bot.tree.command(name="add_quote", description="Adds a quote; No shift enter or enter key on phone")
 async def add_quote(ctx: discord.Interaction, quote: str):
     with open('quotes.txt', 'a') as f:
         f.write("\n")
@@ -387,6 +387,36 @@ async def credits(ctx: discord.Interaction):
 async def test(ctx: discord.Interaction):
     await ctx.response.send_message("Test passed", ephemeral=True)
     print("tested")
+
+# command to send the homework reminder
+@bot.tree.command(name="hwreminders", description="remind people of their homework, include due date in description if you want")
+@app_commands.checks.has_permissions(administrator=True)
+async def hwreminders(ctx: discord.Interaction, subject: str, description: str):
+    hwremindstring = subject + " - " + description
+    with open('hwreminders.txt', 'a') as f:
+        f.write(hwremindstring)
+        f.write("\n")
+        f.close()
+    await ctx.response.send_message("You sent the reminder: " + hwremindstring, ephemeral=True)
+    
+@bot.tree.command(name="see_reminders", description="see the homework reminders lined up")
+@app_commands.checks.has_permissions(administrator=True)
+async def see_reminders(ctx:discord.Interaction):
+    with open('hwreminders.txt', 'r') as f:
+        reminders = [line.strip() for line in f if line.strip()]
+        f.close()
+    if not reminders:
+        await ctx.response.send_message("There are no reminders right now.", ephemeral=True)
+    await ctx.response.send_message(reminders)
+    
+@bot.tree.command(name="clear_reminders", description="clear the homework reminders")
+@app_commands.checks.has_permissions(administrator=True)
+async def clear_reminders(ctx:discord.Interaction):
+    with open('hwreminders.txt', 'w') as f:
+        f.write("")
+        f.close()
+    
+    await ctx.response.send_message("Reminders cleared!", ephemeral=True)
 
 with open('token.txt', 'r') as f:
     TOKEN = f.read()
