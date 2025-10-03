@@ -20,6 +20,8 @@ IMAGE_LOG_FILE = "image_log.json"
 IMAGE_DIR = "images"
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
+# variables to make code less cluttered
+red = discord.Color.red()
 
 #for images ig idk wth this is
 def load_json(path, default=None):
@@ -105,6 +107,7 @@ async def on_message(message):
     if message.author.bot:
         return
     # this has smth to do with images im not gonna bother with this
+    content = message.content
     if str(config.get("insert_channel")) == str(message.channel.id):
         for attachment in message.attachments:
             if attachment.content_type and attachment.content_type.startswith("image"):
@@ -131,15 +134,15 @@ async def on_message(message):
                 print("image added")
     else:
         # if the message is not an attatchment, checks if cheating and calls the necesary functions and stuff
-        if is_cheating(message.content):
+        if is_cheating(content):
             log_channel_id = config.get("autolog_channel")
             if log_channel_id:
                 log_channel = bot.get_channel(log_channel_id)
                 if log_channel:
                     embed = discord.Embed(
                         title="Cheating Flagged",
-                        description=message.content,
-                        color=discord.Color.red(),
+                        description=content,
+                        color=red(),
                         timestamp=datetime.now(dt_timezone.utc)
                     )
                     embed.set_author(name=str(message.author), icon_url=message.author.display_avatar.url)
@@ -147,6 +150,8 @@ async def on_message(message):
                     embed.add_field(name="Message Link", value=f"[Jump to message]({message.jump_url})")
                     await log_channel.send(embed=embed)
                     print("cheat logged")
+        if content.lower() == "kys":
+            message.reply
     await bot.process_commands(message)
     
 # changed, lets see if this works
