@@ -1,24 +1,40 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import json, os, aiohttp, re
-from datetime import datetime, timedelta, timezone as dt_timezone
-from pytz import timezone as p_timezone
-import time
+from datetime import datetime as dtmod, timedelta, time, timezone as dt_timezone
 import random
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
+import datetime as dt
 #intents and files
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
 intents.guilds = True
 intents.members = True
+allowed_mention = discord.AllowedMentions(everyone=True, users=True, roles=True, replied_user=True)
 bot = commands.Bot(command_prefix="ss!", intents=intents)
 CONFIG_FILE = "config.json"
 IMAGE_LOG_FILE = "image_log.json"
 IMAGE_DIR = "images"
 os.makedirs(IMAGE_DIR, exist_ok=True)
+
+# access roles_and_channel.txt, assigns channels and roles
+f = open('roles_and_channels.txt', "r")
+flines = f.readlines()
+bot_commands_role = flines[0]
+bot_commands_role = int(bot_commands_role.rstrip())
+
+hw_reminders_channel = flines[1]
+hw_reminders_channel = int(hw_reminders_channel.rstrip())
+
+test_reminders_channel = flines[2]
+test_reminders_channel = int(test_reminders_channel.rstrip())
+
+hw_reminders_role = flines[3]
+hw_reminders_role = int(hw_reminders_role.rstrip())
+
+test_reminders_role = flines[4]
+test_reminders_role = int(test_reminders_role.rstrip())
 
 # variables to make code less cluttered
 red = discord.Color.red()
@@ -61,6 +77,14 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands.")
+        if not job_loop.is_running():
+            job_loop.start()
+            print("job loop has started")
+        
+        if not daily_post.is_running():
+            daily_post.start()
+            print("daily post script running")
+
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
@@ -127,7 +151,7 @@ async def on_message(message):
                     "uploaderID": str(message.author.id),
                     "uploaderNickname": str(message.author.nick),
                     "uploaderUsername": str(message.author),
-                    "timestamp": str(datetime.now(dt_timezone.utc))
+                    "timestamp": str(dt.datetime.now(dt_timezone.utc))
                 })
                 save_json(IMAGE_LOG_FILE, image_log)
                 await bot.get_channel(config.get("insert_channel")).send(f"New image has been logged as #{len(image_log)}!")
@@ -140,43 +164,22 @@ async def on_message(message):
                 log_channel = bot.get_channel(log_channel_id)
                 if log_channel:
                     embed = discord.Embed(
+                        color=red,
                         title="Cheating Flagged",
                         description=content,
-                        color=red(),
-                        timestamp=datetime.now(dt_timezone.utc)
+                        timestamp=dt.datetime.now(dt_timezone.utc)
                     )
                     embed.set_author(name=str(message.author), icon_url=message.author.display_avatar.url)
                     embed.add_field(name="Channel", value=message.channel.mention)
                     embed.add_field(name="Message Link", value=f"[Jump to message]({message.jump_url})")
                     await log_channel.send(embed=embed)
                     print("cheat logged")
-        if content.lower() == "kys":
-            message.reply
+        if "kys" in content.lower():
+            await message.reply("We do not tolerate this type of violence in this server. How ***dare*** you!")
+        if "kms" in content.lower():
+            await message.reply("Do I need to call the suicide prevention lifeline? I'm sure you can do it yourself, it's right on the back of your ID!")
     await bot.process_commands(message)
     
-# changed, lets see if this works
-scheduler = AsyncIOScheduler(timezone=p_timezone("US/Central"))
-@scheduler.scheduled_job("cron", hour=19, minute=57)
-async def daily_post():
-    print("[DEBUG] daily post triggered")
-    if "output_channel" not in config:
-        return
-    
-    index = config.get("current_index")
-    if index >= len(image_log):
-        return
-    
-    entry = image_log[index]
-    channel = bot.get_channel(config["output_channel"])
-    if not channel:
-        return
-    
-    filepath = os.path.join(IMAGE_DIR, entry["filename"])
-    if os.path.exists(filepath):
-        await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
-        config["current_index"] = index + 1
-        save_json(CONFIG_FILE, config)
-    print("daily sent")
 
 # command to get the past daily meme
 @bot.tree.command(name="get_past_daily", description="get a past daily meme")
@@ -361,7 +364,7 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
                 title="Suggestion",
                 description=suggestion,
                 color=discord.Color.blurple(),
-                timestamp=datetime.now(dt_timezone.utc)
+                timestamp=dtmod.now(dt_timezone.utc)
             )
             embed.set_author(name=str(ctx.user), icon_url=ctx.user.display_avatar.url)
             await log_channel.send(embed=embed)
@@ -373,9 +376,7 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
     else:
         await ctx.response.send_message("It seems like there is no log channel ID. Perhaps spam a admin", ephemeral=True)
 
-# command to see who made this, created by dreex54
-# half chance this works. No idea how to do this. If it works first try im just better like that
-#IT DIDNT WORK FIRST TRY IM ANGRY NOW
+# command to see who made this
 @bot.tree.command(name="credits", description="see who contributed to this beautiful bot")
 async def credits(ctx: discord.Interaction):
     # longest line :skull:
@@ -388,47 +389,127 @@ async def test(ctx: discord.Interaction):
     await ctx.response.send_message("Test passed", ephemeral=True)
     print("tested")
 
-# command to send the reminder
-@bot.tree.command(name="set_reminder", description="remind people of their homework/tests, include due date in description if you want")
-@app_commands.checks.has_permissions(administrator=True)
-async def hwreminders(ctx: discord.Interaction, testorhomework: str, subject: str, description: str):
+# command to add a reminder
+@bot.tree.command(name="add_reminder", description="remind people of their homework/tests, include due date in description if you want")
+@app_commands.checks.has_role(bot_commands_role)
+async def add_reminder(ctx: discord.Interaction, test_or_homeworks: str, subject: str, description: str):
     hwremindstring = subject + " - " + description
-    testorhomework = testorhomework.lower()
-    if testorhomework == "homework" or testorhomework == "hw":
+    test_or_homework = test_or_homeworks.lower()
+    if test == "homework" or test_or_homework == "hw":
         with open('hwreminders.txt', 'a') as f:
             f.write(hwremindstring)
             f.write("\n")
             f.close()
-        await ctx.response.send_message("You sent the reminder: " + hwremindstring)
-    elif testorhomework == "test" or testorhomework == "quiz":
+        await ctx.response.send_message("You sent the homework reminder: " + hwremindstring)
+    elif test_or_homework == "test" or test_or_homework == "quiz":
         with open('testreminders.txt', 'a') as f:
             f.write(hwremindstring)
             f.write("\n")
             f.close()
-        await ctx.response.send_message("You sent the reminder: " + hwremindstring)
+        await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + hwremindstring)
     else:
-        await ctx.response.send_message("You did not choose test or homework for the test or homework category", ephemeral=True)
-    
+        await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
+   
+# shows you reminders for the selected category 
 @bot.tree.command(name="see_reminders", description="see the test/quiz or homework reminders lined up")
-@app_commands.checks.has_permissions(administrator=True)
-async def see_reminders(ctx:discord.Interaction, testOrQuiz: str):
-    #WIP as of commiting
-    if testOrQuiz == "test" or testOrQuiz == "quiz"
+@app_commands.checks.has_role(bot_commands_role)
+async def see_reminders(ctx:discord.Interaction, test_or_homeworks: str):
+    test_or_homework = test_or_homeworks.lower()
+    if test_or_homework == "test" or test_or_homework == "quiz":
+        with open('testreminders.txt', 'r') as f:
+            reminders = [line.strip() for line in f if line.strip()]
+            f.close()
+        if not reminders:
+            await ctx.response.send_message("There are no test/quiz reminders right now.", ephemeral=True)
+        else:
+            await ctx.response.send_message(reminders)
+    elif test_or_homework == "homework" or test_or_homework == "hw":
+        with open('hwreminders.txt', 'r') as f:
+            reminders = [line.strip() for line in f if line.strip()]
+            f.close()
+        if not reminders:
+            await ctx.response.send_message("There are no homework reminders right now.", ephemeral=True)
+        await ctx.response.send_message(reminders)
+    else:
+        await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
+    
+# clears the reminders for a certain category (test or quiz)
+@bot.tree.command(name="clear_reminders", description="clear the homework reminders")
+@app_commands.checks.has_role(bot_commands_role)
+async def clear_reminders(ctx:discord.Interaction, test_or_homeworks: str):
+    test_or_homework = test_or_homeworks.lower()
+    if test_or_homework == "test" or test_or_homework == "quiz":
+        with open('testreminders.txt', 'w') as f:
+            f.write("")
+            f.close()
+        await ctx.response.send_message("Test reminders cleared!")
+    elif test_or_homework == "hw" or test_or_homework == "homework":
+        with open('hwreminders.txt', 'w') as f:
+            f.write("")
+            f.close()
+        await ctx.response.send_message("Homework reminders cleared!")
+    else:
+        await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
+        
+# test command to see if the channels and roles are correct
+# @bot.tree.command(name="link_channels", description="[TEST COMMAND], makes sure that the pings and the channels are correct.")
+# @app_commands.checks.has_role(bot_commands_role)
+# async def link_channels(ctx:discord.Interaction):
+#     await ctx.response.send_message(f"Role that is allowed to use certain bot commands: <@&{bot_commands_role}>\nChannel for homework reminders: <#{hw_reminders_channel}>\nChannel for test/quiz reminders: <#{test_reminders_channel}>")
+
+# another test function, tests if you can ping roles and users
+# @bot.tree.command(name="ping_someone", description="ping someone or ping a role")
+# @app_commands.checks.has_role(bot_commands_role)
+# async def ping_someone(ctx: discord.Interaction, ping:str):
+#     await ctx.response.send_message(f"{ping}", allowed_mentions=allowed_mention)
+
+
+# gets the current timezone so you don't have to use UTC, you're welcome
+# https://github.com/Rapptz/discord.py/discussions/9547
+currenttz = dt.datetime.now().astimezone().tzinfo
+
+# still have to deal with a 24 hr clock tho
+timeToRepeat = dt.time(hour=22, minute=16, tzinfo=currenttz)
+@tasks.loop(time=timeToRepeat)
+async def job_loop():
+    print("script running")
     with open('hwreminders.txt', 'r') as f:
         reminders = [line.strip() for line in f if line.strip()]
         f.close()
-    if not reminders:
-        await ctx.response.send_message("There are no reminders right now.", ephemeral=True)
-    await ctx.response.send_message(reminders)
+    channel = bot.get_channel(hw_reminders_channel)
+    reminders = '\n'.join(reminders)
+    await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
     
-@bot.tree.command(name="clear_reminders", description="clear the homework reminders")
-@app_commands.checks.has_permissions(administrator=True)
-async def clear_reminders(ctx:discord.Interaction):
-    with open('hwreminders.txt', 'w') as f:
-        f.write("")
+    channel = bot.get_channel(test_reminders_channel)
+    with open('testreminders.txt', 'r') as f:
+        reminders = [line.strip() for line in f if line.strip()]
         f.close()
     
-    await ctx.response.send_message("Reminders cleared")
+    reminders = '\n'.join(reminders)
+    await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
+    
+# a working (cough cough) daily meme
+@tasks.loop(time=timeToRepeat)
+async def daily_post():
+    print("[DEBUG] daily post triggered")
+    if "output_channel" not in config:
+        return
+    
+    index = config.get("current_index")
+    if index >= len(image_log):
+        return
+    
+    entry = image_log[index]
+    channel = bot.get_channel(config["output_channel"])
+    if not channel:
+        return
+    
+    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+    if os.path.exists(filepath):
+        await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
+        config["current_index"] = index + 1
+        save_json(CONFIG_FILE, config)
+    print("daily sent")
 
 with open('token.txt', 'r') as f:
     TOKEN = f.read()
