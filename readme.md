@@ -15,3 +15,4 @@ If you want to fork it, you gotta make the files in gitignore
     - line 3: The test/quiz reminder channel. This is the channel ID of where the test and quiz reminders get posted.
     - line 4: The role to ping when sending homework reminders
     - line 5: The role to ping when sending test/quiz reminders
+ - image_log.json: contains the images for the automeme
