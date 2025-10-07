@@ -469,7 +469,8 @@ async def clear_reminders(ctx:discord.Interaction, test_or_homeworks: str):
 currenttz = dt.datetime.now().astimezone().tzinfo
 
 # still have to deal with a 24 hr clock tho
-timeToRepeat = dt.time(hour=22, minute=16, tzinfo=currenttz)
+# right now it is at 5pm for both hw/test reminders and daily meme
+timeToRepeat = dt.time(hour=17, minute=4, tzinfo=currenttz)
 @tasks.loop(time=timeToRepeat)
 async def job_loop():
     print("script running")
