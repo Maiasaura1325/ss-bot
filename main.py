@@ -470,7 +470,7 @@ currenttz = dt.datetime.now().astimezone().tzinfo
 
 # still have to deal with a 24 hr clock tho
 # right now it is at 5pm for both hw/test reminders and daily meme
-timeToRepeat = dt.time(hour=17, minute=8, tzinfo=currenttz)
+timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
 @tasks.loop(time=timeToRepeat)
 async def job_loop():
     print("script running")
