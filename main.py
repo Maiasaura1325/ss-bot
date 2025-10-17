@@ -36,6 +36,9 @@ hw_reminders_role = int(hw_reminders_role.rstrip())
 test_reminders_role = flines[4]
 test_reminders_role = int(test_reminders_role.rstrip())
 
+admin_channel = flines[5]
+admin_channel = int(admin_channel.rstrip())
+
 # variables to make code less cluttered
 red = discord.Color.red()
 
@@ -84,6 +87,9 @@ async def on_ready():
         if not daily_post.is_running():
             daily_post.start()
             print("daily post script running")
+
+        channel = bot.get_channel(admin_channel)
+        await channel.send("Bot online!")
 
     except Exception as e:
         print(f"Error syncing commands: {e}")
@@ -474,6 +480,32 @@ timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
 @tasks.loop(time=timeToRepeat)
 async def job_loop():
     print("script running")
+    # with open('hwreminders.txt', 'r') as f:
+    #     reminders = [line.strip() for line in f if line.strip()]
+    #     f.close()
+    # channel = bot.get_channel(hw_reminders_channel)
+    # reminders = '\n'.join(reminders)
+    # await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
+    # 
+    # channel = bot.get_channel(test_reminders_channel)
+    # with open('testreminders.txt', 'r') as f:
+    #     reminders = [line.strip() for line in f if line.strip()]
+    #     f.close()
+    # 
+    # reminders = '\n'.join(reminders)
+    # await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
+
+    # don't know if this works, left the rest of the thing just in case
+    manual_send_reminders()
+
+# untested so far
+@bot.tree.command(name="send_reminders", description="just in case it doesn't send on its own")
+@app_commands.checks.has_role(bot_commands_role)
+async def send_reminders():
+    manual_send_reminders()
+
+# untested function
+async def manual_send_reminders():
     with open('hwreminders.txt', 'r') as f:
         reminders = [line.strip() for line in f if line.strip()]
         f.close()
@@ -488,7 +520,7 @@ async def job_loop():
     
     reminders = '\n'.join(reminders)
     await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
-    
+
 # a working (cough cough) daily meme
 @tasks.loop(time=timeToRepeat)
 async def daily_post():
