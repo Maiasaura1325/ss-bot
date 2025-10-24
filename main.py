@@ -58,7 +58,7 @@ timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
 def open_file(file:str, mode:str, strtowrite:str=None):
     if mode == "r":
         # r mode is used many times without this functionality, but there are too many differences to make it worth it to add it to this function
-        with open(file, "r") as f:
+        with open(file, 'r') as f:
             return_thing = [line.strip() for line in f if line.strip()]
             f.close()
         return return_thing
@@ -96,8 +96,9 @@ def is_secret(ctx: discord.Interaction):
 
 # function to see if message may contain cheating MAY PRODUCE FALSE POSITIVES DO NOT BAN PEOPLE JUST CUZ THEY SHOW UP HERE!!!!!!!!!!!!!!!!
 def is_cheating(text):
-    with open('keywords.txt', 'r') as f:
-        keywords = [line.strip() for line in f if line.strip()]
+    # with open('keywords.txt', 'r') as f:
+    #     keywords = [line.strip() for line in f if line.strip()]
+    keywords = open_file('keywords.txt', 'r')
     return any(re.search(rf'\b{re.escape(keyword)}\b', text, re.IGNORECASE) for keyword in keywords)
 
 # stuff to say and or do when ready and if there is an error
@@ -231,11 +232,8 @@ async def purge(ctx: discord.Interaction, count: int=5):
 @bot.tree.command(name="add_keyword", description="Add keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def add_keyword(ctx: discord.Interaction, phrase: str):
-    # with open('keywords.txt', 'a') as f:
-    #     f.write(phrase)
-    #     f.write("\n")
-    #     f.close()
     open_file('keywords.txt', 'a', phrase)
+    
     await ctx.response.send_message(f"Your phrase ```{phrase}``` has been added to autolog keywords")
     print(f"added {phrase} to keywords")
 
@@ -266,8 +264,10 @@ async def remove_keyword(ctx: discord.Interaction, phrase: str):
 @bot.tree.command(name="check_keywords", description="List keywords for autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def check_keywords(ctx: discord.Interaction):
-    with open('keywords.txt', 'r') as f:
-        keywords = [line.strip() for line in f if line.strip()]
+    # with open('keywords.txt', 'r') as f:
+    #     keywords = [line.strip() for line in f if line.strip()]
+        
+    keywords = open_file('keywords.txt', 'r')
     
     if not keywords:
         await ctx.response.send_message("The keyword list is currently empty.", ephemeral=True)
@@ -320,8 +320,10 @@ async def remove_quote(ctx: discord.Interaction, quote: str=None, index: int=Non
 @bot.tree.command(name="check_quotes", description="List all quotes from the list of quotes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def check_quotes(ctx: discord.Interaction, show_index: bool):
-    with open('quotes.txt', 'r') as f:
-        quotes = [line.strip() for line in f if line.strip()]
+    # with open('quotes.txt', 'r') as f:
+    #     quotes = [line.strip() for line in f if line.strip()]
+        
+    quotes = open_file('quotes.txt', 'r')
     
     if not quotes:
         await ctx.response.send_message("The quotes list is currently empty.", ephemeral=True)
@@ -372,12 +374,9 @@ async def get_random_meme(ctx: discord.Interaction):
 # adds a quote to quotes.txt (reskinned add keyword command)
 @bot.tree.command(name="add_quote", description="Adds a quote; No shift enter or enter key on phone")
 async def add_quote(ctx: discord.Interaction, quote: str):
-    # with open('quotes.txt', 'a') as f:
-    #     f.write(quote)
-    #     f.write("\n")
-    #     f.close()
-        
+    
     open_file('quotes.txt', 'a', quote)
+    
     with open('quotes.txt', 'r') as f:
         length = len(f.read().splitlines())
         f.close()
@@ -389,8 +388,11 @@ async def add_quote(ctx: discord.Interaction, quote: str):
 # sends a random quote, not actually a reskin 
 @bot.tree.command(name="random_quote", description="generates a random quote")
 async def random_quote(ctx: discord.Interaction, show_index: bool):
-    with open("quotes.txt", 'r') as f:
-        quotes = [line.strip() for line in f if line.strip()]
+    # with open("quotes.txt", 'r') as f:
+    #     quotes = [line.strip() for line in f if line.strip()]
+        
+    quotes = open_file('quotes.txt', 'r')
+    
     if not quotes:
         await ctx.response.send_message("The quotes list is currently empty.", ephemeral=True)
         return
@@ -471,20 +473,14 @@ async def add_reminder(ctx: discord.Interaction, test_or_homeworks: str, subject
     remindstring = subject + " - " + description
     test_or_homework = test_or_homeworks.lower()
     if test == "homework" or test_or_homework == "hw":
-        # with open('hwreminders.txt', 'a') as f:
-        #     f.write(hwremindstring)
-        #     f.write("\n")
-        #     f.close()
-            
+    
         open_file('hwreminders.txt', 'a', remindstring)
+        
         await ctx.response.send_message("You sent the homework reminder: " + remindstring)
     elif test_or_homework == "test" or test_or_homework == "quiz":
-        # with open('testreminders.txt', 'a') as f:
-        #     f.write(remindstring)
-        #     f.write("\n")
-        #     f.close()
-            
+      
         open_file('testreminders.txt', 'a', remindstring)
+        
         await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + remindstring)
     else:
         await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
@@ -495,17 +491,20 @@ async def add_reminder(ctx: discord.Interaction, test_or_homeworks: str, subject
 async def see_reminders(ctx:discord.Interaction, test_or_homeworks: str):
     test_or_homework = test_or_homeworks.lower()
     if test_or_homework == "test" or test_or_homework == "quiz":
-        with open('testreminders.txt', 'r') as f:
-            reminders = [line.strip() for line in f if line.strip()]
-            f.close()
+        # with open('testreminders.txt', 'r') as f:
+        #     reminders = [line.strip() for line in f if line.strip()]
+        #     f.close()
+        reminders = open_file('testreminders.txt', 'r')
         if not reminders:
             await ctx.response.send_message("There are no test/quiz reminders right now.", ephemeral=True)
         else:
             await ctx.response.send_message(reminders)
     elif test_or_homework == "homework" or test_or_homework == "hw":
-        with open('hwreminders.txt', 'r') as f:
-            reminders = [line.strip() for line in f if line.strip()]
-            f.close()
+        # with open('hwreminders.txt', 'r') as f:
+        #     reminders = [line.strip() for line in f if line.strip()]
+        #     f.close()
+            
+        reminders = open_file('hwreminders.txt', 'r')
         if not reminders:
             await ctx.response.send_message("There are no homework reminders right now.", ephemeral=True)
         await ctx.response.send_message(reminders)
@@ -567,17 +566,21 @@ async def send_reminders(ctx:discord.Interaction):
 # functions to send the test and quiz reminders so I don't have to copy and paste the code 15 different times    
 def get_test_reminders():
     channel = bot.get_channel(test_reminders_channel)
-    with open('testreminders.txt', 'r') as f:
-        reminders = [line.strip() for line in f if line.strip()]
-        f.close()
+    # with open('testreminders.txt', 'r') as f:
+    #     reminders = [line.strip() for line in f if line.strip()]
+    #     f.close()
+        
+    reminders = open_file('testreminders.txt', 'r')
     
     reminders = '\n'.join(reminders)
     return f"<@&{test_reminders_role}>\n" + reminders
 
 def get_hw_reminders():
-    with open('hwreminders.txt', 'r') as f:
-        reminders = [line.strip() for line in f if line.strip()]
-        f.close()
+    # with open('hwreminders.txt', 'r') as f:
+    #     reminders = [line.strip() for line in f if line.strip()]
+    #     f.close()
+        
+    reminders = open_file('hwreminders.txt', 'r')
     channel = bot.get_channel(hw_reminders_channel)
     reminders = '\n'.join(reminders)
     return f"<@&{hw_reminders_role}>\n" + reminders
