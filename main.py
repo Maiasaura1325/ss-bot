@@ -11,14 +11,15 @@ intents.message_content = True
 intents.messages = True
 intents.guilds = True
 intents.members = True
-allowed_mention = discord.AllowedMentions(everyone=True, users=True, roles=True, replied_user=True)
+all_allowed_mention = discord.AllowedMentions(everyone=True, users=True, roles=True, replied_user=True)
+no_allowed_mention = discord.AllowedMentions(everyone=False, users=False, roles=False, replied_user=False)
 bot = commands.Bot(command_prefix="ss!", intents=intents)
 CONFIG_FILE = "config.json"
 IMAGE_LOG_FILE = "image_log.json"
 IMAGE_DIR = "images"
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
-# access roles_and_channel.txt, assigns channels and roles
+# access roles_and_channel.txt, assigns channels and roles, line order specified in readme.md
 f = open('roles_and_channels.txt', "r")
 flines = f.readlines()
 bot_commands_role = flines[0]
@@ -41,6 +42,32 @@ admin_channel = int(admin_channel.rstrip())
 
 # variables to make code less cluttered
 red = discord.Color.red()
+
+# variables for the scheduled functions, the auto meme and the hw/test reminders
+# gets the current timezone so you don't have to use UTC, you're welcome
+# https://github.com/Rapptz/discord.py/discussions/9547
+currenttz = dt.datetime.now().astimezone().tzinfo
+
+# still have to deal with a 24 hr clock tho
+# right now it is at 5pm for both hw/test reminders and daily meme
+timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
+
+# function to open a file with a specific mode, takes only r and a
+# since read mode was used with the line.strip thing the entire time and append mode was used in the way that it was,
+# I just decided to make a general purpose function for it to decrease clutter
+def open_file(file:str, mode:str, strtowrite:str=None):
+    if mode == "r":
+        # r mode is used many times without this functionality, but there are too many differences to make it worth it to add it to this function
+        with open(file, "r") as f:
+            return_thing = [line.strip() for line in f if line.strip()]
+            f.close()
+        return return_thing
+    else:
+        # same deal with this
+        with open(file, 'a') as f:
+            f.write(strtowrite)
+            f.write("\n")
+            f.close()
 
 #for images ig idk wth this is
 def load_json(path, default=None):
@@ -94,41 +121,7 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
-# command for input channel for memes
-@bot.tree.command(name="set_input_channel", description="set input channel for daily memes [ADMIN ONLY]")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_input_channel(ctx: discord.Interaction, channel: discord.TextChannel):
-    config["insert_channel"] = channel.id
-    save_json(CONFIG_FILE, config)
-    await ctx.response.send_message(f"Insert channel set to {channel.mention}", ephemeral=True)
-    print(f"set input channel: {channel}")
 
-# command for output channel for daily memes
-@bot.tree.command(name="set_output_channel", description="set output channel for daily memes [ADMIN ONLY]")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_output_channel(ctx: discord.Interaction, channel: discord.TextChannel):
-    config["output_channel"] = channel.id
-    save_json(CONFIG_FILE, config)
-    await ctx.response.send_message(f"Output channel set to {channel.mention}", ephemeral=True)
-    print(f"set output channel: {channel}")
-
-# sets and autolog channel
-@bot.tree.command(name="set_autolog_channel", description="set autlog channel [ADMIN ONLY]")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
-    config["autolog_channel"] = channel.id
-    save_json(CONFIG_FILE, config)
-    await ctx.response.send_message(f"Autolog channel set to {channel.mention}", ephemeral=True)
-    print(f"set autolog channel: {channel}")
-
-# sets a channel where suggestions will appear
-@bot.tree.command(name="set_suggestions_channel", description="set suggestions channel (where it shows up) [ADMIN ONLY]")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
-    config["suggest_channel"] = channel.id
-    save_json(CONFIG_FILE, config)
-    await ctx.response.send_message(f"Suggestions channel set to {channel.mention}", ephemeral=True)
-    print(f"set suggestions channel: {channel}")
 
 # calls fuctions to see if people are cheating everytime someone sends a message
 @bot.event
@@ -181,42 +174,51 @@ async def on_message(message):
                     await log_channel.send(embed=embed)
                     print("cheat logged")
         if "kys" in content.lower():
+            # the triple asterisk is discord formatting, makess it so that it's italicized and bolded ⬇️
             await message.reply("We do not tolerate this type of violence in this server. How ***dare*** you!")
         if "kms" in content.lower():
             await message.reply("Do I need to call the suicide prevention lifeline? I'm sure you can do it yourself, it's right on the back of your ID!")
     await bot.process_commands(message)
     
-
-# command to get the past daily meme
-@bot.tree.command(name="get_past_daily", description="get a past daily meme")
-async def get_past_daily(ctx: discord.Interaction, number: int):
-    if number <= 0 or number > len(image_log):
-        await ctx.response.send_message(f"Invalid number: {number}. Your number must be between 1 and {len(image_log)}", ephemeral=True)
-        return
     
-    entry = image_log[number - 1]
-    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+# admin only commands
 
-    if not os.path.exists(filepath):
-        await ctx.response.send_message("Image file missing.", ephemeral=True)
-        return
+# command for input channel for memes
+@bot.tree.command(name="set_input_channel", description="set input channel for daily memes [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_input_channel(ctx: discord.Interaction, channel: discord.TextChannel):
+    config["insert_channel"] = channel.id
+    save_json(CONFIG_FILE, config)
+    await ctx.response.send_message(f"Insert channel set to {channel.mention}", ephemeral=True)
+    print(f"set input channel: {channel}")
+
+# command for output channel for daily memes
+@bot.tree.command(name="set_output_channel", description="set output channel for daily memes [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_output_channel(ctx: discord.Interaction, channel: discord.TextChannel):
+    config["output_channel"] = channel.id
+    save_json(CONFIG_FILE, config)
+    await ctx.response.send_message(f"Output channel set to {channel.mention}", ephemeral=True)
+    print(f"set output channel: {channel}")
+
+# sets an autolog channel
+@bot.tree.command(name="set_autolog_channel", description="set autlog channel [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
+    config["autolog_channel"] = channel.id
+    save_json(CONFIG_FILE, config)
+    await ctx.response.send_message(f"Autolog channel set to {channel.mention}", ephemeral=True)
+    print(f"set autolog channel: {channel}")
+
+# sets a channel where suggestions will appear
+@bot.tree.command(name="set_suggestions_channel", description="set suggestions channel (where it shows up) [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_autolog_channel(ctx: discord.Interaction, channel: discord.TextChannel):
+    config["suggest_channel"] = channel.id
+    save_json(CONFIG_FILE, config)
+    await ctx.response.send_message(f"Suggestions channel set to {channel.mention}", ephemeral=True)
+    print(f"set suggestions channel: {channel}")
     
-    await ctx.response.send_message(f"Image #{number}", file=discord.File(filepath))
-    print("past daily sent")
-
-@bot.tree.command(name="get_random_meme", description="get a random meme")
-async def get_random_meme(ctx: discord.Interaction):
-    num = random.randint(0, len(image_log)-1)
-    entry = image_log[num - 1]
-    filepath = os.path.join(IMAGE_DIR, entry["filename"])
-    if not os.path.exists(filepath):
-        await ctx.response.send_message("Image file is missing. Try again", ephemeral=True)
-        print(f"Random image error. Image index: {num}")
-        return
-    
-    await ctx.response.send_message(f"Image #{num+1}", file=discord.File(filepath))
-    print(f"Random image sent: Index {num}")
-
 # deletes x amt of messages
 @bot.tree.command(name="purge", description="purge messages [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -229,10 +231,11 @@ async def purge(ctx: discord.Interaction, count: int=5):
 @bot.tree.command(name="add_keyword", description="Add keywords from autolog [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def add_keyword(ctx: discord.Interaction, phrase: str):
-    with open('keywords.txt', 'a') as f:
-        f.write("\n")
-        f.write(phrase)
-        f.close()
+    # with open('keywords.txt', 'a') as f:
+    #     f.write(phrase)
+    #     f.write("\n")
+    #     f.close()
+    open_file('keywords.txt', 'a', phrase)
     await ctx.response.send_message(f"Your phrase ```{phrase}``` has been added to autolog keywords")
     print(f"added {phrase} to keywords")
 
@@ -257,7 +260,7 @@ async def remove_keyword(ctx: discord.Interaction, phrase: str):
             f.write(kw + '\n')
     
     await ctx.response.send_message(f"Removed keyword: ```{phrase}```")
-    print(f"{phrase} removed form keywords")
+    print(f"{phrase} removed from keywords")
 
 # sends a list of the keywords
 @bot.tree.command(name="check_keywords", description="List keywords for autolog [ADMIN ONLY]")
@@ -272,22 +275,9 @@ async def check_keywords(ctx: discord.Interaction):
     
     keyword_list = "\n".join(f"- {kw}" for kw in keywords)
     await ctx.response.send_message(f"**Current Autolog Keywords ({len(keywords)}):**\n{keyword_list}", ephemeral=True)
-    print("keywords checked")
+    print("keywords checked") 
     
-# adds a quote to quotes.txt (reskinned add keyword command so should work) (dreex created)
-@bot.tree.command(name="add_quote", description="Adds a quote; No shift enter or enter key on phone")
-async def add_quote(ctx: discord.Interaction, quote: str):
-    with open('quotes.txt', 'a') as f:
-        f.write("\n")
-        f.write(quote)
-        f.close()
-    with open('quotes.txt', 'r') as f:
-        length = len(f.read().splitlines())
-        f.close()
-    await ctx.response.send_message(f"Your quote ```{quote}``` has been added to the list of quotes. The index of your quote is {length-1}")
-    print(f"added {quote} to quotes")
-    
-# removes a quote from quotes.txt, also reskinned (dreex made)
+# removes a quote from quotes.txt, also reskinned
 # quote indexing support
 @bot.tree.command(name="remove_quote", description="Remove quote from the list of quotes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
@@ -320,10 +310,13 @@ async def remove_quote(ctx: discord.Interaction, quote: str=None, index: int=Non
     
     await ctx.response.send_message(f"Removed quote: ```{quote}```")
     print(f"{quote} removed from quotes")
-    # holy crap that was a lot of changing stuff from keyword and phrase to quote and quotes
+    
+
+# quotes and meme functions
     
 # sends a list of the quotes, also reskinned and dreex made (its as if I can't actually code)
 # dont worry i can actually code, coders are just lazy. Bro write your own code its not that hard. or at least write something that doesn't look copy pasted from my code.
+# hell no
 @bot.tree.command(name="check_quotes", description="List all quotes from the list of quotes [ADMIN ONLY]")
 @app_commands.checks.has_permissions(administrator=True)
 async def check_quotes(ctx: discord.Interaction, show_index: bool):
@@ -343,8 +336,57 @@ async def check_quotes(ctx: discord.Interaction, show_index: bool):
     
     await ctx.response.send_message(f"**Current quotes ({len(quotes)}):**\n{quote_list}", ephemeral=True)
     print("quotes checked")
+      
+# command to get the past daily meme
+@bot.tree.command(name="get_past_daily", description="get a past daily meme")
+async def get_past_daily(ctx: discord.Interaction, number: int):
+    if number <= 0 or number > len(image_log):
+        await ctx.response.send_message(f"Invalid number: {number}. Your number must be between 1 and {len(image_log)}", ephemeral=True)
+        return
     
-# sends a random quote, dreex made, not actually a reskin 
+    entry = image_log[number - 1]
+    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+
+    if not os.path.exists(filepath):
+        await ctx.response.send_message("Image file missing.", ephemeral=True)
+        return
+    
+    await ctx.response.send_message(f"Image #{number}", file=discord.File(filepath))
+    print("past daily sent")
+
+@bot.tree.command(name="get_random_meme", description="get a random meme")
+async def get_random_meme(ctx: discord.Interaction):
+    num = random.randint(0, len(image_log)-1)
+    entry = image_log[num - 1]
+    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+    if not os.path.exists(filepath):
+        await ctx.response.send_message("Image file is missing. Try again", ephemeral=True)
+        print(f"Random image error. Image index: {num}")
+        return
+    
+    await ctx.response.send_message(f"Image #{num+1}", file=discord.File(filepath))
+    print(f"Random image sent: Index {num}")
+
+
+    
+# adds a quote to quotes.txt (reskinned add keyword command)
+@bot.tree.command(name="add_quote", description="Adds a quote; No shift enter or enter key on phone")
+async def add_quote(ctx: discord.Interaction, quote: str):
+    # with open('quotes.txt', 'a') as f:
+    #     f.write(quote)
+    #     f.write("\n")
+    #     f.close()
+        
+    open_file('quotes.txt', 'a', quote)
+    with open('quotes.txt', 'r') as f:
+        length = len(f.read().splitlines())
+        f.close()
+    await ctx.response.send_message(f"Your quote ```{quote}``` has been added to the list of quotes. The index of your quote is {length-1}")
+    print(f"added {quote} to quotes")
+    
+
+    
+# sends a random quote, not actually a reskin 
 @bot.tree.command(name="random_quote", description="generates a random quote")
 async def random_quote(ctx: discord.Interaction, show_index: bool):
     with open("quotes.txt", 'r') as f:
@@ -358,7 +400,31 @@ async def random_quote(ctx: discord.Interaction, show_index: bool):
     else:
         await ctx.response.send_message(quotes[quote])
     print("random quote sent. \nIndex: " + str(quote))
-
+    
+# a working (cough cough) daily meme
+@tasks.loop(time=timeToRepeat)
+async def daily_post():
+    print("[DEBUG] daily post triggered")
+    if "output_channel" not in config:
+        return
+    
+    index = config.get("current_index")
+    if index >= len(image_log):
+        return
+    
+    entry = image_log[index]
+    channel = bot.get_channel(config["output_channel"])
+    if not channel:
+        return
+    
+    filepath = os.path.join(IMAGE_DIR, entry["filename"])
+    if os.path.exists(filepath):
+        await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
+        config["current_index"] = index + 1
+        save_json(CONFIG_FILE, config)
+    print("daily sent")
+    
+    
 # command to send a suggestion to the designated channel
 @bot.tree.command(name="suggest", description="send any suggestions to the admins :)")
 async def suggest(ctx: discord.Interaction, suggestion: str):
@@ -377,7 +443,7 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
             await ctx.response.send_message("Your suggestion has been sent :)", ephemeral=True)
             print(f"suggestion sent: {suggestion}")
         else:
-            # why spam an admin :sob:
+            # why spam an admin 😭
             await ctx.response.send_message("It seems like there is no log channel. Perhaps spam a admin", ephemeral=True)
     else:
         await ctx.response.send_message("It seems like there is no log channel ID. Perhaps spam a admin", ephemeral=True)
@@ -385,8 +451,8 @@ async def suggest(ctx: discord.Interaction, suggestion: str):
 # command to see who made this
 @bot.tree.command(name="credits", description="see who contributed to this beautiful bot")
 async def credits(ctx: discord.Interaction):
-    # longest line :skull:
-    await ctx.response.send_message("<@1146930572179017883> made almost all of the code while <@1274754262181613691> mostly yapped through comments but did actually add code, and last but not the least, we havve to give credit to our good friend ChatGPT (<@1146930572179017883> doing not me blame her when ai takes over the world)", ephemeral=True)
+    # longest line 💀
+    await ctx.response.send_message("<@1146930572179017883> made almost all of the code while <@1274754262181613691> mostly yapped through comments but did actually add code, and last but not the least, we have to give credit to our good friend ChatGPT (<@1146930572179017883> doing not me blame her when ai takes over the world)", ephemeral=True, allowed_mentions=no_allowed_mention)
 
 # test the bot, either for the random secret command or maiasaura thinks commoners can't see this command even though they probably can
 @bot.tree.command(name="test", description="Testing the bot [SECRET ONLY]")
@@ -395,24 +461,31 @@ async def test(ctx: discord.Interaction):
     await ctx.response.send_message("Test passed", ephemeral=True)
     print("tested")
 
+
+# test/hw reminder commands
+
 # command to add a reminder
 @bot.tree.command(name="add_reminder", description="remind people of their homework/tests, include due date in description if you want")
 @app_commands.checks.has_role(bot_commands_role)
 async def add_reminder(ctx: discord.Interaction, test_or_homeworks: str, subject: str, description: str):
-    hwremindstring = subject + " - " + description
+    remindstring = subject + " - " + description
     test_or_homework = test_or_homeworks.lower()
     if test == "homework" or test_or_homework == "hw":
-        with open('hwreminders.txt', 'a') as f:
-            f.write(hwremindstring)
-            f.write("\n")
-            f.close()
-        await ctx.response.send_message("You sent the homework reminder: " + hwremindstring)
+        # with open('hwreminders.txt', 'a') as f:
+        #     f.write(hwremindstring)
+        #     f.write("\n")
+        #     f.close()
+            
+        open_file('hwreminders.txt', 'a', remindstring)
+        await ctx.response.send_message("You sent the homework reminder: " + remindstring)
     elif test_or_homework == "test" or test_or_homework == "quiz":
-        with open('testreminders.txt', 'a') as f:
-            f.write(hwremindstring)
-            f.write("\n")
-            f.close()
-        await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + hwremindstring)
+        # with open('testreminders.txt', 'a') as f:
+        #     f.write(remindstring)
+        #     f.write("\n")
+        #     f.close()
+            
+        open_file('testreminders.txt', 'a', remindstring)
+        await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + remindstring)
     else:
         await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
    
@@ -467,81 +540,49 @@ async def clear_reminders(ctx:discord.Interaction, test_or_homeworks: str):
 # @bot.tree.command(name="ping_someone", description="ping someone or ping a role")
 # @app_commands.checks.has_role(bot_commands_role)
 # async def ping_someone(ctx: discord.Interaction, ping:str):
-#     await ctx.response.send_message(f"{ping}", allowed_mentions=allowed_mention)
+#     await ctx.response.send_message(f"{ping}", allowed_mentions=all_allowed_mention)
 
 
-# gets the current timezone so you don't have to use UTC, you're welcome
-# https://github.com/Rapptz/discord.py/discussions/9547
-currenttz = dt.datetime.now().astimezone().tzinfo
-
-# still have to deal with a 24 hr clock tho
-# right now it is at 5pm for both hw/test reminders and daily meme
-timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
 @tasks.loop(time=timeToRepeat)
 async def job_loop():
-    print("script running")
-    with open('hwreminders.txt', 'r') as f:
-        reminders = [line.strip() for line in f if line.strip()]
-        f.close()
-    channel = bot.get_channel(hw_reminders_channel)
-    reminders = '\n'.join(reminders)
-    await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
+    print("reminders script running")
+    channel = bot.get_channel(test_reminders_channel)
+    await channel.send(get_hw_reminders())
     
+    channel = bot.get_channel(hw_reminders_channel)
+    await channel.send(get_hw_reminders())
+    
+
+# as the description says, does what the previous command did just at any time you want
+@bot.tree.command(name="send_reminders", description="just in case it doesn't send on its own")
+@app_commands.checks.has_role(bot_commands_role)
+async def send_reminders(ctx:discord.Interaction):
+    channel = bot.get_channel(test_reminders_channel)
+    await channel.send(get_test_reminders())
+    
+    channel = bot.get_channel(hw_reminders_channel)
+    await channel.send(get_hw_reminders())
+ 
+
+# functions to send the test and quiz reminders so I don't have to copy and paste the code 15 different times    
+def get_test_reminders():
     channel = bot.get_channel(test_reminders_channel)
     with open('testreminders.txt', 'r') as f:
         reminders = [line.strip() for line in f if line.strip()]
         f.close()
     
     reminders = '\n'.join(reminders)
-    await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
-    
-    # manual_send_reminders()
+    return f"<@&{test_reminders_role}>\n" + reminders
 
-# untested so far, relies on a function that doesnt work lmao
-# @bot.tree.command(name="send_reminders", description="just in case it doesn't send on its own")
-# @app_commands.checks.has_role(bot_commands_role)
-# async def send_reminders(ctx:discord.Interaction):
-#     manual_send_reminders()
+def get_hw_reminders():
+    with open('hwreminders.txt', 'r') as f:
+        reminders = [line.strip() for line in f if line.strip()]
+        f.close()
+    channel = bot.get_channel(hw_reminders_channel)
+    reminders = '\n'.join(reminders)
+    return f"<@&{hw_reminders_role}>\n" + reminders
 
-# untested function confirmed, does not work
-# async def manual_send_reminders():
-#     with open('hwreminders.txt', 'r') as f:
-#         reminders = [line.strip() for line in f if line.strip()]
-#         f.close()
-#     channel = bot.get_channel(hw_reminders_channel)
-#     reminders = '\n'.join(reminders)
-#     await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
-#     
-#     channel = bot.get_channel(test_reminders_channel)
-#     with open('testreminders.txt', 'r') as f:
-#         reminders = [line.strip() for line in f if line.strip()]
-#         f.close()
-#     
-#     reminders = '\n'.join(reminders)
-#     await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
 
-# a working (cough cough) daily meme
-@tasks.loop(time=timeToRepeat)
-async def daily_post():
-    print("[DEBUG] daily post triggered")
-    if "output_channel" not in config:
-        return
-    
-    index = config.get("current_index")
-    if index >= len(image_log):
-        return
-    
-    entry = image_log[index]
-    channel = bot.get_channel(config["output_channel"])
-    if not channel:
-        return
-    
-    filepath = os.path.join(IMAGE_DIR, entry["filename"])
-    if os.path.exists(filepath):
-        await channel.send(f"Daily Image #{index + 1}", file=discord.File(filepath))
-        config["current_index"] = index + 1
-        save_json(CONFIG_FILE, config)
-    print("daily sent")
 
 with open('token.txt', 'r') as f:
     TOKEN = f.read()
