@@ -480,32 +480,6 @@ timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
 @tasks.loop(time=timeToRepeat)
 async def job_loop():
     print("script running")
-    # with open('hwreminders.txt', 'r') as f:
-    #     reminders = [line.strip() for line in f if line.strip()]
-    #     f.close()
-    # channel = bot.get_channel(hw_reminders_channel)
-    # reminders = '\n'.join(reminders)
-    # await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
-    # 
-    # channel = bot.get_channel(test_reminders_channel)
-    # with open('testreminders.txt', 'r') as f:
-    #     reminders = [line.strip() for line in f if line.strip()]
-    #     f.close()
-    # 
-    # reminders = '\n'.join(reminders)
-    # await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
-
-    # don't know if this works, left the rest of the thing just in case
-    manual_send_reminders()
-
-# untested so far
-@bot.tree.command(name="send_reminders", description="just in case it doesn't send on its own")
-@app_commands.checks.has_role(bot_commands_role)
-async def send_reminders():
-    manual_send_reminders()
-
-# untested function
-async def manual_send_reminders():
     with open('hwreminders.txt', 'r') as f:
         reminders = [line.strip() for line in f if line.strip()]
         f.close()
@@ -520,6 +494,31 @@ async def manual_send_reminders():
     
     reminders = '\n'.join(reminders)
     await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
+    
+    # manual_send_reminders()
+
+# untested so far, relies on a function that doesnt work lmao
+# @bot.tree.command(name="send_reminders", description="just in case it doesn't send on its own")
+# @app_commands.checks.has_role(bot_commands_role)
+# async def send_reminders(ctx:discord.Interaction):
+#     manual_send_reminders()
+
+# untested function confirmed, does not work
+# async def manual_send_reminders():
+#     with open('hwreminders.txt', 'r') as f:
+#         reminders = [line.strip() for line in f if line.strip()]
+#         f.close()
+#     channel = bot.get_channel(hw_reminders_channel)
+#     reminders = '\n'.join(reminders)
+#     await channel.send(f"<@&{hw_reminders_role}>\n" + reminders)
+#     
+#     channel = bot.get_channel(test_reminders_channel)
+#     with open('testreminders.txt', 'r') as f:
+#         reminders = [line.strip() for line in f if line.strip()]
+#         f.close()
+#     
+#     reminders = '\n'.join(reminders)
+#     await channel.send(f"<@&{test_reminders_role}>\n" + reminders)
 
 # a working (cough cough) daily meme
 @tasks.loop(time=timeToRepeat)
