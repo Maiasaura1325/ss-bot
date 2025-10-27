@@ -546,7 +546,7 @@ async def clear_reminders(ctx:discord.Interaction, test_or_homeworks: str):
 async def job_loop():
     print("reminders script running")
     channel = bot.get_channel(test_reminders_channel)
-    await channel.send(get_hw_reminders())
+    await channel.send(get_test_reminders())
     
     channel = bot.get_channel(hw_reminders_channel)
     await channel.send(get_hw_reminders())
