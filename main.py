@@ -550,6 +550,9 @@ async def job_loop():
     
     channel = bot.get_channel(hw_reminders_channel)
     await channel.send(get_hw_reminders())
+
+    channel = bot.get_channel(admin_channel)
+    await channel.send("Reminders have been automatically sent!")
     
 
 # as the description says, does what the previous command did just at any time you want
@@ -561,6 +564,8 @@ async def send_reminders(ctx:discord.Interaction):
     
     channel = bot.get_channel(hw_reminders_channel)
     await channel.send(get_hw_reminders())
+
+    await ctx.response.send_message("Reminders sent!")
  
 
 # functions to send the test and quiz reminders so I don't have to copy and paste the code 15 different times    
