@@ -517,17 +517,20 @@ async def see_reminders(ctx:discord.Interaction, test_or_homeworks: str):
 async def clear_reminders(ctx:discord.Interaction, test_or_homeworks: str):
     test_or_homework = test_or_homeworks.lower()
     if test_or_homework == "test" or test_or_homework == "quiz":
-        with open('testreminders.txt', 'w') as f:
-            f.write("")
-            f.close()
+        clear_reminder("testreminders.txt")
         await ctx.response.send_message("Test reminders cleared!")
     elif test_or_homework == "hw" or test_or_homework == "homework":
-        with open('hwreminders.txt', 'w') as f:
-            f.write("")
-            f.close()
+        clear_reminder("hwreminders.txt")
         await ctx.response.send_message("Homework reminders cleared!")
     else:
         await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
+        
+@bot.tree.command(name="clear_all_reminders", description="Clear ALL of the reminders")
+@app_commands.checks.has_role(bot_commands_role)
+async def clear_all_reminders(ctx:discord.Interaction):
+    clear_reminder("testreminders.txt")
+    clear_reminder("hwreminders.txt")
+    await ctx.response.send_message("All reminders have been cleared")
         
 # test command to see if the channels and roles are correct
 # @bot.tree.command(name="link_channels", description="[TEST COMMAND], makes sure that the pings and the channels are correct.")
@@ -590,6 +593,10 @@ def get_hw_reminders():
     reminders = '\n'.join(reminders)
     return f"<@&{hw_reminders_role}>\n" + reminders
 
+def clear_reminder(filename):
+    with open(filename, 'w') as f:
+            f.write("")
+            f.close()
 
 
 with open('token.txt', 'r') as f:
