@@ -3,7 +3,10 @@
  - Autolog support, daily meme if it works lol
 
 If you want to fork it, you gotta make the files in gitignore
- - token.txt: contains a single bot token (you can find in discord dev portal)
+
+If your version is before the first commit on 9/6/2026, you have to change the token being in a .txt file to it being in a .env file.
+
+ - token.env: contains a single bot token (you can find in discord dev portal)
  - keywords.txt: contains keywords for autologging
  - secret.txt: contains users for secret commands :0; every seperate line has a discord user id
  - testreminders.txt: contains test reminders
