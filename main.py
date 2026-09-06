@@ -5,6 +5,8 @@ import json, os, aiohttp, re
 from datetime import datetime as dtmod, timedelta, time, timezone as dt_timezone
 import random
 import datetime as dt
+import dotenv
+
 #intents and files
 intents = discord.Intents.default()
 intents.message_content = True
@@ -598,8 +600,6 @@ def clear_reminder(filename):
             f.write("")
             f.close()
 
-
-with open('token.txt', 'r') as f:
-    TOKEN = f.read()
-
+dotenv.load_dotenv(dotenv_path="token.env")
+TOKEN = os.getenv("BOT_TOKEN")
 bot.run(TOKEN)
