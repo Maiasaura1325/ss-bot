@@ -6,6 +6,8 @@ from datetime import datetime as dtmod, timedelta, time, timezone as dt_timezone
 import random
 import datetime as dt
 import dotenv
+import asyncio
+from zoneinfo import ZoneInfo
 
 #intents and files
 intents = discord.Intents.default()
@@ -48,8 +50,7 @@ red = discord.Color.red()
 # variables for the scheduled functions, the auto meme and the hw/test reminders
 # gets the current timezone so you don't have to use UTC, you're welcome
 # https://github.com/Rapptz/discord.py/discussions/9547
-currenttz = dt.datetime.now().astimezone().tzinfo
-
+currenttz = ZoneInfo("America/Chicago")
 # still have to deal with a 24 hr clock tho
 # right now it is at 5pm for both hw/test reminders and daily meme
 timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
@@ -468,22 +469,67 @@ async def test(ctx: discord.Interaction):
 
 # test/hw reminder commands
 
+# to check if the person that sends the next message is the person that issued the command
+
+
+def possibleDuplicateReminder(hw_or_test, date, subject):
+    if (hw_or_test == "test"):
+        entire_file = open_file('testreminders.txt', 'r')
+    else:
+        entire_file = open_file('hwreminders.txt', 'r')
+    if f"{subject}, {date}" in entire_file:
+        return True
+    else:
+        return False
+
 # command to add a reminder
 @bot.tree.command(name="add_reminder", description="remind people of their homework/tests, include due date in description if you want")
+@app_commands.describe(
+    date="Just put anything for now- WORK IN PROGRESS Use the format DD.MM.YYYY"
+)
+@app_commands.choices(test_or_homework=[
+    app_commands.Choice(name="Test", value="test"),
+    app_commands.Choice(name="Quiz", value="quiz"),
+    app_commands.Choice(name="Homework", value="homework")
+])
+
 @app_commands.checks.has_role(bot_commands_role)
-async def add_reminder(ctx: discord.Interaction, test_or_homeworks: str, subject: str, description: str):
-    remindstring = subject + " - " + description
-    test_or_homework = test_or_homeworks.lower()
-    if test == "homework" or test_or_homework == "hw":
-    
-        open_file('hwreminders.txt', 'a', remindstring)
+async def add_reminder(ctx: discord.Interaction, test_or_homework: str, subject: str, date:str, description: str):
+
+    # def check_sender(message: discord.Message) -> bool:
+    #     return message.author.id == ctx.user.id and message.channel.id == ctx.channel.id and message.content.lower() in ("yes", "no")
+
+    remindlist = [subject, date, description]
+    real_remind_list = ""
+    for i in remindlist:
+        real_remind_list.join(i).join(",")
+    real_remind_list = real_remind_list.rstrip(",")
+
+
+    user_decision = test_or_homework.value
+    # possible_dupe_string = f"There appears to already be a {test_or_homework} reminder with the following properties:\nsubject: {subject}\ndate: {date}\ndescription: {description}\n\nReply with \"yes\" to ignore the warning and push the reminder or with \"no\" to discard the reminder"
+
+    if user_decision == "homework":
+        # if possibleDuplicateReminder("homework") == True:
+        #     await ctx.response.send_message(content=possible_dupe_string)
+        #     try: 
+        #         reply = await bot.wait_for("message", check=check_sender, timeout=60.0)
+        #     except asyncio.TimeoutError:
+        #         await ctx.followup.send("Command timed out. Rerun the command again to send a reminder.")
+# 
+        #     if reply.content.lower() == "yes":
+        #         await ctx.followup.send("Reminder has been saved.")
+        #         open_file('hwreminders.txt', 'a', real_remind_list)
+
         
-        await ctx.response.send_message("You sent the homework reminder: " + remindstring)
+        
+        await ctx.response.send_message("You sent the homework reminder: " + real_remind_list)
+
     elif test_or_homework == "test" or test_or_homework == "quiz":
       
-        open_file('testreminders.txt', 'a', remindstring)
+        open_file('testreminders.txt', 'a', real_remind_list)
         
-        await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + remindstring)
+        await ctx.response.send_message(f"You sent the {test_or_homework} reminder: " + real_remind_list)
     else:
         await ctx.response.send_message("Only \"test\", \"quiz\", \"homework\", or \"hw\" are accepted.", ephemeral=True)
    

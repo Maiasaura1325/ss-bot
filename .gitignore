@@ -8,3 +8,4 @@ roles_and_channels.txt
 image_log.json
 token.env
 requirements.txt
+.vscode
