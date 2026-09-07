@@ -504,14 +504,15 @@ async def add_reminder(ctx: discord.Interaction, test_or_homework: str, subject:
     # def check_sender(message: discord.Message) -> bool:
     #     return message.author.id == ctx.user.id and message.channel.id == ctx.channel.id and message.content.lower() in ("yes", "no")
 
-    remindlist = [subject, date, description]
-    real_remind_list = ""
-    for i in remindlist:
-        real_remind_list.join(i).join(",")
-    real_remind_list = real_remind_list.rstrip(",")
+    # remindlist = [subject, description] # add date later
+    # real_remind_list = ""
+    # for i in remindlist:
+    #     real_remind_list.join(i).join(" - ")
+    # real_remind_list = real_remind_list.rstrip(" - ")
+    real_remind_list = subject + " - " + description
 
 
-    user_decision = test_or_homework.value
+    user_decision = test_or_homework.lower()
     # possible_dupe_string = f"There appears to already be a {test_or_homework} reminder with the following properties:\nsubject: {subject}\ndate: {date}\ndescription: {description}\n\nReply with \"yes\" to ignore the warning and push the reminder or with \"no\" to discard the reminder"
 
     if user_decision == "homework":
@@ -526,7 +527,7 @@ async def add_reminder(ctx: discord.Interaction, test_or_homework: str, subject:
         #         await ctx.followup.send("Reminder has been saved.")
         #         open_file('hwreminders.txt', 'a', real_remind_list)
 
-        
+        open_file('hwreminders.txt', 'a', real_remind_list)
         
         await ctx.response.send_message("You sent the homework reminder: " + real_remind_list)
 
