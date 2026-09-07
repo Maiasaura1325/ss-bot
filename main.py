@@ -54,6 +54,7 @@ currenttz = ZoneInfo("America/Chicago")
 # still have to deal with a 24 hr clock tho
 # right now it is at 5pm for both hw/test reminders and daily meme
 timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
+# testingTimeToRepeat = dt.time(hour=14, minute=4,tzinfo=currenttz)
 
 # function to open a file with a specific mode, takes only r and a
 # since read mode was used with the line.strip thing the entire time and append mode was used in the way that it was,
@@ -118,6 +119,10 @@ async def on_ready():
         if not daily_post.is_running():
             daily_post.start()
             print("daily post script running")
+
+        # if not test_loop.is_running():
+        #     test_loop.start()
+        #     print("test loop started")
 
         channel = bot.get_channel(admin_channel)
         await channel.send("Bot online!")
@@ -617,7 +622,23 @@ async def send_reminders(ctx:discord.Interaction):
     await channel.send(get_hw_reminders())
 
     await ctx.response.send_message("Reminders sent!")
+
+
  
+@bot.tree.command(name="test_reminders", description="test the hw reminders [ADMIN ONLY]")
+@app_commands.checks.has_permissions(administrator=True)
+async def test_reminders(ctx:discord.Interaction):
+    channel = bot.get_channel(admin_channel)
+    await channel.send(get_hw_reminders())
+    await channel.send(get_test_reminders())
+    await ctx.response.send_message("Reminders tested!")
+
+# @tasks.loop(time=testingTimeToRepeat)
+# async def test_loop():
+#     channel = bot.get_channel(admin_channel)
+#     await channel.send(get_hw_reminders())
+#     await channel.send(get_test_reminders())
+#     await channel.send("Automatic Reminders tested!")
 
 # functions to send the test and quiz reminders so I don't have to copy and paste the code 15 different times    
 def get_test_reminders():
