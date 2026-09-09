@@ -610,6 +610,9 @@ async def job_loop():
 
     channel = bot.get_channel(admin_channel)
     await channel.send("Reminders have been automatically sent!")
+    clear_reminder("testreminders.txt")
+    clear_reminder("hwreminders.txt")
+    await channel.send("Reminders have been cleared!")
     
 
 # as the description says, does what the previous command did just at any time you want
