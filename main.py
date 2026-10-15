@@ -141,6 +141,9 @@ async def on_ready():
         if not daily_post.is_running():
             daily_post.start()
             print("daily post script running")
+        if not remindReminders.is_running():
+            remindReminders.start()
+            print("Remind for the reminders running")
 
         # if not test_loop.is_running():
         #     test_loop.start()
@@ -721,7 +724,7 @@ def get_test_reminders():
     #     f.close()
         
     reminders = open_file('testreminders.txt', 'r')
-    if not reminders.strip():
+    if not any(reminders.strip() for reminder in reminders):
         return ""
     
     reminders = '\n'.join(reminders)
@@ -734,8 +737,8 @@ def get_hw_reminders():
         
     reminders = open_file('hwreminders.txt', 'r')
     channel = bot.get_channel(hw_reminders_channel)
-    if not reminders.strip():
-        return ""
+    if not any(reminders.strip() for reminder in reminders):
+            return ""
     reminders = '\n'.join(reminders)
     return f"<@&{hw_reminders_role}>\n" + reminders
 
