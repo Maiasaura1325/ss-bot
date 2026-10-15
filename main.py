@@ -8,6 +8,7 @@ import datetime as dt
 import dotenv
 import asyncio
 from zoneinfo import ZoneInfo
+import re
 
 #intents and files
 intents = discord.Intents.default()
@@ -53,8 +54,29 @@ red = discord.Color.red()
 currenttz = ZoneInfo("America/Chicago")
 # still have to deal with a 24 hr clock tho
 # right now it is at 5pm for both hw/test reminders and daily meme
-timeToRepeat = dt.time(hour=17, minute=0, tzinfo=currenttz)
+rhour = 17
+rmin = 0
+timeToRepeat = dt.time(hour=rhour, minute=rmin, tzinfo=currenttz)
 # testingTimeToRepeat = dt.time(hour=14, minute=4,tzinfo=currenttz)
+timeToRemind = dt.time(hour=rhour-1, minute=rmin+30, tzinfo=currenttz) # for the reminders for the people to give the reminders :)
+
+# some funny thing for when a bot threatens you (check in the on_message function)
+forgiveList = ["sorry", "srry", "my bad", "my fault"]
+                                                           # mins
+async def timeout_user(user: discord.Member, user_message, duration, reason, broadcast_channel):
+    await user.timeout(timedelta(minutes=duration), reason=reason)
+    embed = discord.Embed(
+        colour=red,
+        title="Member timed out",
+        
+    )
+    embed.set_author(name=str(user), icon_url=user.display_avatar.url)
+    embed.add_field(name="Channel", value=user_message.channel.mention)
+    embed.add_field(name="Reason", value=reason)
+    embed.add_field(name="Duration", value=f"{duration} minutes")
+    embed.add_field(name="Message Link", value=f"[Jump to message]({user_message.jump_url})")
+    await broadcast_channel.send(embed=embed)
+
 
 # function to open a file with a specific mode, takes only r and a
 # since read mode was used with the line.strip thing the entire time and append mode was used in the way that it was,
@@ -187,6 +209,39 @@ async def on_message(message):
             await message.reply("We do not tolerate this type of violence in this server. How ***dare*** you!")
         if "kms" in content.lower():
             await message.reply("Do I need to call the suicide prevention lifeline? I'm sure you can do it yourself, it's right on the back of your ID!")
+        if f"<@{bot.user.id}>" in content.lower():
+            print("angred")
+            await message.reply("I will nuke you into the ground. Your entire bloodline will feel my wrath")
+            async with message.channel.typing():
+                await asyncio.sleep(1.2)
+            await message.channel.send("Beg for forgiveness...")
+            async with message.channel.typing():
+                await asyncio.sleep(0.5)
+            await message.channel.send("Or else")
+
+            def check_sender(incoming_message: discord.Message) -> bool:
+                pattern = re.compile(r"\b(" + "|".join(map(re.escape, forgiveList)) + r")\b", re.IGNORECASE)
+                return (message.author.id == incoming_message.author.id and
+                         message.channel.id == incoming_message.channel.id and 
+                         pattern.search(incoming_message.content) is not None)
+
+            try:
+                await bot.wait_for('message', check=check_sender, timeout=10)
+                await message.channel.send("Thank you for your cooperation. Next time however, do not mess with me...")
+            except:
+                async with message.channel.typing():
+                    await asyncio.sleep(2)
+                await message.channel.send("I gave you fair warning. I am not sorry for what happens next.")
+                await asyncio.sleep(1.5)
+                try:
+                    await timeout_user(message.author, message, 7, "Being an undeserving human being", message.channel)
+                except:
+                    async with message.channel.typing():
+                        await asyncio.sleep(2)
+                    await message.channel.send("So apparantly I can't send you into oblivion. You're just gonna have to ignore me on that one.")
+
+
+            
     await bot.process_commands(message)
     
     
@@ -603,16 +658,30 @@ async def clear_all_reminders(ctx:discord.Interaction):
 async def job_loop():
     print("reminders script running")
     channel = bot.get_channel(test_reminders_channel)
-    await channel.send(get_test_reminders())
+    tr = get_test_reminders()
+    if tr == "":
+        await channel.send("No tests(?)")
+    else:
+        await channel.send(get_test_reminders())
     
     channel = bot.get_channel(hw_reminders_channel)
-    await channel.send(get_hw_reminders())
+    hm = get_hw_reminders()
+    if hm == "":
+        await channel.send("No HW!")
+    else:
+        await channel.send(get_hw_reminders())
 
     channel = bot.get_channel(admin_channel)
     await channel.send("Reminders have been automatically sent!")
     clear_reminder("testreminders.txt")
     clear_reminder("hwreminders.txt")
     await channel.send("Reminders have been cleared!")
+
+@tasks.loop(time=timeToRemind)
+async def remindReminders():
+    channel = admin_channel
+    await channel.send("30 minutes left...")
+    await channel.send("get off your lazy bum and send those dang reminders!")
     
 
 # as the description says, does what the previous command did just at any time you want
@@ -652,6 +721,8 @@ def get_test_reminders():
     #     f.close()
         
     reminders = open_file('testreminders.txt', 'r')
+    if not reminders.strip():
+        return ""
     
     reminders = '\n'.join(reminders)
     return f"<@&{test_reminders_role}>\n" + reminders
@@ -663,6 +734,8 @@ def get_hw_reminders():
         
     reminders = open_file('hwreminders.txt', 'r')
     channel = bot.get_channel(hw_reminders_channel)
+    if not reminders.strip():
+        return ""
     reminders = '\n'.join(reminders)
     return f"<@&{hw_reminders_role}>\n" + reminders
 
