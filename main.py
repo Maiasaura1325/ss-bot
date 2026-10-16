@@ -682,7 +682,7 @@ async def job_loop():
 
 @tasks.loop(time=timeToRemind)
 async def remindReminders():
-    channel = admin_channel
+    channel = bot.get_channel(admin_channel)
     await channel.send("30 minutes left...")
     await channel.send("get off your lazy bum and send those dang reminders!")
     
